@@ -99,6 +99,20 @@ pub fn tool_list() -> Value {
                 }),
                 &["name", "ip", "port", "username", "password", "dbtype"],
             ),
+            make_tool(
+                "list_saved_serverconfig",
+                "List all saved server connection configurations.",
+                json!({}),
+                &[],
+            ),
+            make_tool(
+                "get_saved_config_url",
+                "Return the connection URL for a saved server configuration by name. Useful to inspect or reuse stored credentials.",
+                json!({
+                    "name": str_prop("The name of the saved server configuration (as used in configure_server).")
+                }),
+                &["name"],
+            ),
         ]
     })
 }
@@ -406,8 +420,30 @@ pub async fn dispatch(tool: &str, args: &Value, state: &ConfigSharedState) -> Va
                 Ok(msg) => tool_ok(msg),
                 Err(e) => tool_err(format!("Error {e}")),
             }
+        },
+        "list_saved_serverconfig" => {
+            match crate::config::list_saved_configs() {
+                Ok(configs) => tool_ok(
+                    serde_json::to_string_pretty(&json!({ "saved_configs": configs }))
+                        .unwrap_or_default(),
+                ),
+                Err(e) => tool_err(format!("Error {e}")),
+            }
         }
 
+        "get_saved_config_url" => {
+            let name = match args.get("name").and_then(|v| v.as_str()) {
+                Some(s) => s,
+                None => return tool_err("Missing required argument: name"),
+            };
+            match crate::config::get_saved_config_url(name) {
+                Ok(url) => tool_ok(
+                    serde_json::to_string_pretty(&json!({ "name": name, "url": url }))
+                        .unwrap_or_default(),
+                ),
+                Err(e) => tool_err(e),
+            }
+        }
         other => tool_err(format!("Unknown tool: '{other}'")),
     }
 }

@@ -83,6 +83,12 @@ impl Config {
         self.config_map.get(name).map(|e| e.to_connection_url())
     }
 
+    pub fn list_entry_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.config_map.keys().cloned().collect();
+        names.sort();
+        names
+    }
+
     pub fn load_from_file(&mut self) -> std::io::Result<()> {
         use std::fs::File;
         use std::io::{BufRead, BufReader};
@@ -154,6 +160,7 @@ impl Config {
             ))
         }
     }
+
 }
 
 static CONFIG_INSTANCE: std::sync::OnceLock<Arc<Mutex<Config>>> =
@@ -209,3 +216,23 @@ pub fn get_connection_url(name: &str) -> Option<String> {
         .ok()?
         .get_connection_url(name)
 }
+
+
+pub fn list_saved_configs() -> Result<Vec<String>, String> {
+    let arc = CONFIG_INSTANCE
+        .get()
+        .ok_or_else(|| "Config not initialized.".to_string())?;
+    let cfg = arc.lock().map_err(|e| format!("Config lock poisoned: {e}"))?;
+    Ok(cfg.list_entry_names())
+}
+
+pub fn get_saved_config_url(name: &str) -> Result<String, String> {
+    let arc = CONFIG_INSTANCE
+        .get()
+        .ok_or_else(|| "Config not initialized.".to_string())?;
+    let cfg = arc.lock().map_err(|e| format!("Config lock poisoned: {e}"))?;
+    cfg.get_connection_url(name)
+        .ok_or_else(|| format!("No saved config found with name '{name}'."))
+}
+
+
